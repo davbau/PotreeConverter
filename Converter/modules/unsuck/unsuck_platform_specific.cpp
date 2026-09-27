@@ -145,6 +145,95 @@ CpuData getCpuData() {
 	return data;
 }
 
+#elif defined(__APPLE__)
+
+#include <mach/mach.h>
+#include <sys/sysctl.h>
+
+MemoryData getMemoryData() {
+	MemoryData data;
+
+	mach_msg_type_number_t count = HOST_VM_INFO64_COUNT;
+	vm_statistics64_data_t vmStats;
+	if (host_statistics64(mach_host_self(), HOST_VM_INFO64, (host_info64_t)&vmStats, &count) == KERN_SUCCESS) {
+		data.physical_total = vmStats.free_count + vmStats.active_count + vmStats.inactive_count + vmStats.wire_count;
+		data.physical_used = vmStats.active_count + vmStats.inactive_count + vmStats.wire_count;
+		data.physical_total *= vm_page_size;
+		data.physical_used *= vm_page_size;
+	}
+
+	int mib[2];
+	int64_t physicalMemory;
+	mib[0] = CTL_HW;
+	mib[1] = HW_MEMSIZE;
+	size_t len = sizeof(physicalMemory);
+	sysctl(mib, 2, &physicalMemory, &len, NULL, 0);
+	data.virtual_total = physicalMemory;
+	data.virtual_used = data.physical_used;
+
+	struct mach_task_basic_info info;
+	mach_msg_type_number_t infoCount = MACH_TASK_BASIC_INFO_COUNT;
+	task_info(mach_task_self(), MACH_TASK_BASIC_INFO, (task_info_t)&info, &infoCount);
+	data.virtual_usedByProcess = info.virtual_size;
+	data.physical_usedByProcess = info.resident_size;
+
+	static size_t virtualUsedMax = 0;
+	static size_t physicalUsedMax = 0;
+	virtualUsedMax = std::max((size_t)data.virtual_usedByProcess, virtualUsedMax);
+	physicalUsedMax = std::max((size_t)data.physical_usedByProcess, physicalUsedMax);
+	data.virtual_usedByProcess_max = virtualUsedMax;
+	data.physical_usedByProcess_max = physicalUsedMax;
+
+	return data;
+}
+
+void printMemoryReport() {
+	auto memoryData = getMemoryData();
+	double vm = double(memoryData.virtual_usedByProcess) / (1024.0 * 1024.0 * 1024.0);
+	double pm = double(memoryData.physical_usedByProcess) / (1024.0 * 1024.0 * 1024.0);
+
+	stringstream ss;
+	ss << "memory usage: "
+		<< "virtual: " << formatNumber(vm, 1) << " GB, "
+		<< "physical: " << formatNumber(pm, 1) << " GB"
+		<< endl;
+
+	cout << ss.str();
+}
+
+void launchMemoryChecker(int64_t maxMB, double checkInterval) {
+	auto interval = std::chrono::milliseconds(int64_t(checkInterval * 1000));
+
+	thread t([maxMB, interval]() {
+		while (true) {
+			auto memdata = getMemoryData();
+			using namespace std::chrono_literals;
+			std::this_thread::sleep_for(interval);
+		}
+	});
+	t.detach();
+}
+
+static int numProcessors;
+static bool initialized = false;
+
+void init() {
+	numProcessors = std::thread::hardware_concurrency();
+	initialized = true;
+}
+
+CpuData getCpuData() {
+	if (!initialized) {
+		init();
+	}
+
+	CpuData data;
+	data.numProcessors = numProcessors;
+	data.usage = 0.0;
+
+	return data;
+}
+
 #elif defined(__linux__)
 
 // see https://stackoverflow.com/questions/63166/how-to-determine-cpu-and-memory-consumption-from-inside-a-process

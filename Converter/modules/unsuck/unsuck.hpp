@@ -49,9 +49,19 @@ using u16 = uint16_t;
 using i8  =   int8_t;
 using u8  =  uint8_t;
 
+// Break into the debugger on unreachable code. MSVC has __debugbreak(); every other
+// compiler compiles it away, which is what MSVC release builds do anyway.
+#if defined(_MSC_VER)
+	#define debugbreak() __debugbreak()
+#else
+	#define debugbreak() ((void)0)
+#endif
+
 
 #if defined(__linux__)
 constexpr auto fseek_64_all_platforms = fseeko64;
+#elif defined(__APPLE__)
+constexpr auto fseek_64_all_platforms = fseeko;
 #elif defined(WIN32)
 constexpr auto fseek_64_all_platforms = _fseeki64;
 #endif

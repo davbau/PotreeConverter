@@ -1,7 +1,9 @@
 
 #pragma once
 
+#if !defined(__APPLE__)
 #include <execution>
+#endif
 #include <random>
 #include <chrono>
 #include <cstring>

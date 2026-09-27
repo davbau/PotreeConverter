@@ -1,7 +1,9 @@
 
 // #pragma once
 
+// #if !defined(__APPLE__)
 // #include <execution>
+// #endif
 
 // #include "structures.h"
 // #include "Attributes.h"
@@ -280,8 +282,13 @@
 
 // 			};
 
+// #if defined(__APPLE__)
+// 			// std::execution::par_unseq is not supported on macOS (libc++)
+// 			std::sort(points.begin(), points.end(), [center](Point a, Point b) -> bool {
+// #else
 // 			auto parallel = std::execution::par_unseq;
 // 			std::sort(parallel, points.begin(), points.end(), [center](Point a, Point b) -> bool {
+// #endif
 
 // 				auto ax = a.x - center.x;
 // 				auto ay = a.y - center.y;

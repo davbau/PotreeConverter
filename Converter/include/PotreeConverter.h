@@ -1,7 +1,9 @@
 
 #pragma once
 
+#if !defined(__APPLE__)
 #include <execution>
+#endif
 
 #include "Vector3.h"
 #include "LasLoader/LasLoader.h"
@@ -212,8 +214,13 @@ inline Attributes computeOutputAttributes(vector<Source>& sources, vector<string
 	// compute scale and offset from all sources
 	{
 		mutex mtx;
+#if defined(__APPLE__)
+		// std::execution::par is not supported on macOS (libc++)
+		for_each(sources.begin(), sources.end(), [&mtx, &sources, &scaleMin, &min, &max, requestedAttributes, &fullAttributeList, &acceptedAttributeNames](Source source) {
+#else
 		auto parallel = std::execution::par;
 		for_each(parallel, sources.begin(), sources.end(), [&mtx, &sources, &scaleMin, &min, &max, requestedAttributes, &fullAttributeList, &acceptedAttributeNames](Source source) {
+#endif
 
 			auto header = loadLasHeader(source.path);
 

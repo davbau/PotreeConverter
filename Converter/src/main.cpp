@@ -1,7 +1,9 @@
 
 
 #include <iostream>
+#if !defined(__APPLE__)
 #include <execution>
+#endif
 
 #include "unsuck/unsuck.hpp"
 #include "chunker_countsort_laszip.h"
@@ -204,8 +206,13 @@ Curated curateSources(vector<string> paths) {
 	sources.reserve(paths.size());
 
 	mutex mtx;
+#if defined(__APPLE__)
+	// std::execution::par is not supported on macOS (libc++)
+	for_each(paths.begin(), paths.end(), [&mtx, &sources](string path) {
+#else
 	auto parallel = std::execution::par;
 	for_each(parallel, paths.begin(), paths.end(), [&mtx, &sources](string path) {
+#endif
 
 		auto header = loadLasHeader(path);
 		auto filesize = fs::file_size(path);
