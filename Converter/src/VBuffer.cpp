@@ -6,7 +6,7 @@
 #ifdef _WIN32
 	#define NOMINMAX 
 	#include "windows.h"
-#elif defined(__linux__)
+#elif defined(__linux__) || defined(__APPLE__)
 	#include <sys/mman.h>
 	#include <unistd.h>
 #endif
@@ -19,7 +19,7 @@ shared_ptr<VBuffer> VBuffer::create(i64 size){
 	SYSTEM_INFO sysinfo;
 	GetSystemInfo(&sysinfo);
 	buffer->pageSize = sysinfo.dwPageSize;
-#elif defined(__linux__)
+#elif defined(__linux__) || defined(__APPLE__)
 	buffer->pageSize = sysconf(_SC_PAGESIZE);
 #endif
 	// println("buffer.pageSize: {:L}", buffer.pageSize);
@@ -32,7 +32,7 @@ shared_ptr<VBuffer> VBuffer::create(i64 size){
 
 #ifdef _WIN32
 	ptr = VirtualAlloc(nullptr, virtualCapacity, MEM_RESERVE, PAGE_READWRITE);
-#elif defined(__linux__)
+#elif defined(__linux__) || defined(__APPLE__)
 	ptr = mmap(nullptr, virtualCapacity, PROT_NONE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
 	if(ptr == MAP_FAILED) ptr = nullptr;
 #endif
@@ -73,7 +73,7 @@ void VBuffer::commit(i64 size){
 		println("ERROR: VBuffer::commit - failed to commit {} bytes of physical memory.", target);
 		exit(4315);
 	}
-#elif defined(__linux__)
+#elif defined(__linux__) || defined(__APPLE__)
 	if(mprotect(ptr, target, PROT_READ | PROT_WRITE) != 0){
 		println("ERROR: VBuffer::commit - failed to commit {} bytes of physical memory.", target);
 		exit(4315);
@@ -113,7 +113,7 @@ void VBuffer::commit(i64 size){
 // 		println("ERROR: VBuffer::commitOrShrink - failed to decommit {} bytes of physical memory.", freeSize);
 // 		exit(4316);
 // 	}
-// #elif defined(__linux__)
+// #elif defined(__linux__) || defined(__APPLE__)
 // 	// MADV_DONTNEED releases the physical pages back to the OS;
 // 	// PROT_NONE keeps the address range in the same reserved state as create().
 // 	if(madvise(ptr + target, freeSize, MADV_DONTNEED) != 0 ||
@@ -146,7 +146,7 @@ void VBuffer::destroy(){
 
 #ifdef _WIN32
 	VirtualFree(ptr, 0, MEM_RELEASE);
-#elif defined(__linux__)
+#elif defined(__linux__) || defined(__APPLE__)
 	munmap(ptr, virtualCapacity);
 #endif
 

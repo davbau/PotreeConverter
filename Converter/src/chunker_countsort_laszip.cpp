@@ -1,6 +1,7 @@
 
 #include <iostream>
 #include <filesystem>
+#include <execution>
 #include <unordered_map>
 #include <thread>
 #include <mutex>
@@ -293,7 +294,13 @@ namespace chunker_countsort_laszip {
 
 		// Sanity Check
 		bool hasInvalidFiles = false;
-		for_each(execution::par, sources.begin(), sources.end(), [&](Source& source){
+#if defined(__APPLE__)
+		// std::execution::par is not supported on macOS (libc++)
+		for_each(sources.begin(), sources.end(), [&](Source& source){
+#else
+		auto parallel = std::execution::par;
+		for_each(parallel, sources.begin(), sources.end(), [&](Source& source){
+#endif
 			laszip_POINTER laszip_reader;
 			laszip_header* header;
 			laszip_BOOL request_reader = 1;
